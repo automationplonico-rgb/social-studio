@@ -37,7 +37,7 @@ function render() {
           ps.slice(0, 4).map((p) => chip(p)), ps.length > 4 ? h('button', { class: 'btn sm ghost', onclick: () => dayModal(d.key, ps) }, `+${ps.length - 4} más`) : null);
         return cell;
       }));
-    mount(body, grid, legend());
+    mount(body, draftsBox(), grid, legend());
   }
   const chip = (p) => h('button', { class: `pchip ${p.status}`, draggable: p.status === 'scheduled' || p.status === 'draft' ? 'true' : 'false', title: `${p.title} · ${when(p)}`, ondragstart: (e) => e.dataTransfer.setData('text/plain', p.id), onclick: () => postDetail(p) },
     h('span', { class: 'mini' }, [...new Set(p.targets.map((t) => FORMATS[t.format]?.platform))].map((pl) => h('span', { class: `mini-p ${pl}` }))), h('span', { class: 'muted' }, timeStr(p.scheduledAt, tz)), h('span', { class: 't' }, p.title || 'Sin título'));
@@ -49,9 +49,17 @@ function render() {
     upsert('posts', moved); toast(`Movida al ${fmtDay(at, tz)}`, 'ok');
   }
   function dayModal(key, ps) { openModal({ title: key, body: h('div', null, ps.map((p) => h('div', { class: 'list-item', style: { padding: '8px 0', cursor: 'pointer' }, onclick: () => postDetail(p) }, h('b', null, p.title), h('span', { class: 'muted small' }, timeStr(p.scheduledAt, tz)), statusPill(p.status)))) }); }
+  // Borradores sin fecha: no caben en el calendario, así que se listan aparte (si no, parecen "perdidos")
+  function draftsBox() {
+    const ds = state.posts.filter((p) => p.status === 'draft' && !p.scheduledAt);
+    if (!ds.length) return null;
+    return h('div', { class: 'card', style: { marginBottom: '14px' } }, h('div', { class: 'card-head' }, h('h3', null, `Borradores sin fecha (${ds.length})`), h('span', { class: 'small muted' }, 'Ábrelos, revísalos y programa o elimina')),
+      ds.map((p) => h('button', { class: 'list-item', style: { width: '100%', background: 'none', border: 0, borderBottom: '1px solid var(--line)', textAlign: 'left', cursor: 'pointer' }, onclick: () => postDetail(p) },
+        h('div', { style: { width: '40px', height: '50px', borderRadius: '6px', overflow: 'hidden', flex: 'none' } }, thumb(assetOf(state, p.assetId), '')), h('div', { class: 'grow' }, h('b', null, p.title || 'Sin título'), h('div', { class: 'small muted' }, 'Sin fecha · no se publicará hasta que lo programes')), targetBadges(p), statusPill(p.status))));
+  }
   function drawList() {
     const ps = visible().filter((p) => { const k = parts(p.scheduledAt, tz); return k.y === ym.y && k.m === ym.m; }).sort((a, b) => a.scheduledAt - b.scheduledAt);
-    mount(body, ps.length ? h('div', { class: 'card' }, ps.map((p) => h('button', { class: 'list-item', style: { width: '100%', background: 'none', border: 0, borderBottom: '1px solid var(--line)', textAlign: 'left', cursor: 'pointer' }, onclick: () => postDetail(p) },
+    mount(body, draftsBox(), ps.length ? h('div', { class: 'card' }, ps.map((p) => h('button', { class: 'list-item', style: { width: '100%', background: 'none', border: 0, borderBottom: '1px solid var(--line)', textAlign: 'left', cursor: 'pointer' }, onclick: () => postDetail(p) },
       h('div', { style: { width: '40px', height: '50px', borderRadius: '6px', overflow: 'hidden', flex: 'none' } }, thumb(assetOf(state, p.assetId), '')), h('div', { class: 'grow' }, h('b', null, p.title || 'Sin título'), h('div', { class: 'small muted' }, fmtDateTime(p.scheduledAt, tz))), targetBadges(p), statusPill(p.status)))) : empty('calendar', 'Sin publicaciones este mes', 'Crea una o activa una regla de automatización.'));
   }
   draw(); return root;
