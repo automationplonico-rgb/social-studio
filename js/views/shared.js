@@ -9,7 +9,8 @@ export const targetBadges = (post) => h('span', { class: 'row', style: { gap: '4
 export function thumb(asset, cls = '') {
   if (!asset) return h('div', { class: cls, style: { background: 'var(--surface-2)' } });
   if (!asset.url) return h('div', { class: cls, style: { background: 'var(--surface-2)' } });
-  return asset.kind === 'video' ? h('video', { src: asset.url, muted: true, preload: 'metadata', class: cls, playsinline: true }) : h('img', { src: asset.url, alt: asset.alt || asset.name, class: cls, loading: 'lazy' });
+  const fit = { maxWidth: '100%', display: 'block' };   // nunca más ancho que su contenedor
+  return asset.kind === 'video' ? h('video', { src: asset.url, muted: true, preload: 'metadata', class: cls, playsinline: true, style: fit }) : h('img', { src: asset.url, alt: asset.alt || asset.name, class: cls, loading: 'lazy', style: fit });
 }
 export const when = (post) => (post.scheduledAt ? fmtDateTime(post.scheduledAt, state.settings.tz) : 'Sin fecha');
 
@@ -23,7 +24,7 @@ export function postDetail(post, { onEdit } = {}) {
       r && r.pending ? h('div', { class: 'row' }, pill('Pendiente a mano', 'warn'), h('button', { class: 'btn sm primary', onclick: () => manualModal(post, t) }, 'Hacer ahora')) : r ? (r.ok ? pill(r.manual ? 'Hecho a mano' : r.simulated ? 'OK (simulado)' : 'Publicado', 'ok') : pill('Error', 'err')) : pill(post.status === 'scheduled' ? 'En cola' : '—')); });
   const errs = (post.results || []).filter((r) => !r.ok && r.error);
   const close = openModal({ title: post.title || 'Publicación', size: 'lg', body: h('div', { class: 'grid cols-2', style: { gridTemplateColumns: '180px 1fr' } },
-    h('div', null, thumb(a, ''), ),
+    h('div', { style: { minWidth: 0, width: '180px' } }, thumb(a, '')),
     h('div', { class: 'stack' }, h('div', { class: 'row' }, statusPill(post.status), h('span', { class: 'muted' }, when(post)), post.ruleId ? pill('Automática', 'info') : null),
       post.problem ? callout('warn', h('b', null, 'Revisar: '), post.problem) : null, errs.map((e) => callout('err', h('b', null, 'Error: '), e.error)), h('div', null, rows),
       h('div', null, h('div', { class: 'label' }, 'Texto'), h('p', { class: 'small', style: { whiteSpace: 'pre-wrap' } }, captionFor(post, post.targets[0]?.format) || '(sin texto)')))),
