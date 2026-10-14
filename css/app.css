@@ -198,3 +198,7 @@ kbd { background: var(--surface-2); border: 1px solid var(--line); border-bottom
   .topbar { padding: 10px 16px; } .view { padding: 16px 16px 40px; } .banner { padding: 10px 16px; }
   .cols-2, .cols-3, .cols-4 { grid-template-columns: 1fr; } .cal .day { min-height: 74px; } .cal .pchip .t { display: none; } .bar-row { grid-template-columns: 80px 1fr 56px; }
 }
+
+/* imágenes dentro de ventanas: nunca más grandes que su columna (evita que tapen el texto) */
+.modal-body img, .modal-body video { display: block; width: 100%; height: auto; max-height: 340px; object-fit: contain; background: var(--surface-2); border-radius: 10px; }
+.modal-body .grid > * { min-width: 0; }
