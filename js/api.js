@@ -23,7 +23,7 @@ function persistLocal(state) {
   saveT = setTimeout(() => safe(() => localStorage.setItem(STATE_KEY, JSON.stringify({ accounts: state.accounts, assets: state.assets.map(({ url, ...a }) => a), posts: state.posts, rules: state.rules, settings: state.settings }))), 150);
 }
 export async function loadAll() {
-  if (mode() === 'remote') { const j = await call('load_all'); return { accounts: j.accounts || [], assets: j.assets || [], posts: j.posts || [], rules: j.rules || [], settings: j.settings || null }; }
+  if (mode() === 'remote') { const j = await call('load_all'); return { accounts: j.accounts || [], assets: j.assets || [], posts: j.posts || [], rules: j.rules || [], settings: j.settings || null, driveSync: j.driveSync || null }; }
   return readLocal() || { accounts: [], assets: [], posts: [], rules: [], settings: null };
 }
 export async function upsert(coll, doc, state) {

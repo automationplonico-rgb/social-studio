@@ -6,6 +6,7 @@ import { contentMix } from '../marketing.js';
 import { CATEGORIES } from '../rules.js';
 import { dayKey, fromInputs, rel } from '../tz.js';
 import { statusPill, targetBadges, thumb, when, postDetail, retryFailed, pendingManual, manualModal } from './shared.js';
+import { statusPillFor } from './shared.js';
 import { assetOf } from '../rules.js';
 
 export default function view() {
@@ -38,6 +39,8 @@ function render() {
   for (const { post: p, target } of pendingManual().filter((x) => x.post.scheduledAt <= now + 3600e3).slice(0, 5)) items.push({ k: 'warn', t: `Estado de WhatsApp por publicar: ${p.title || 'diseño'} (${when(p)})`, d: 'WhatsApp no permite publicarlo solo: tienes el diseño y el texto listos.', a: [h('button', { class: 'btn sm primary', onclick: () => manualModal(p, target) }, 'Hacer ahora')] });
   for (const a of att.accounts) items.push({ k: a.status === 'connected' ? 'warn' : 'err', t: a.status === 'connected' ? `${a.label}: el acceso caduca pronto` : `${a.label}: ${a.status === 'expired' ? 'acceso caducado' : 'desconectada'}`, d: a.status === 'connected' ? `Caduca ${rel(a.expiresAt)}. Reconecta antes para no perder publicaciones.` : 'No se publicará nada en esta cuenta hasta reconectar.', a: [h('a', { class: 'btn sm', href: '#/accounts' }, 'Ir a cuentas')] });
   for (const p of P.filter((x) => x.problem && x.status === 'draft')) items.push({ k: 'warn', t: `Borrador automático por revisar: ${p.title}`, d: p.problem, a: [h('a', { class: 'btn sm', href: `#/studio/${p.id}` }, 'Revisar')] });
+  const toApprove = P.filter((p) => p.ruleId && p.approved !== true && p.status === 'scheduled' && p.scheduledAt > now);
+  if (toApprove.length) items.push({ k: 'warn', t: `${toApprove.length} publicaciones automáticas esperan tu aprobación`, d: 'No saldrán hasta que las apruebes (ábrelas en el calendario y pulsa Aprobar).', a: [h('a', { class: 'btn sm primary', href: '#/calendar' }, 'Revisar')] });
   const gaps = []; for (let i = 0; i < 7; i++) { const k = dayKey(now + i * 864e5, S.tz); if (!P.some((p) => p.status === 'scheduled' && p.scheduledAt && dayKey(p.scheduledAt, S.tz) === k)) gaps.push(k); }
   if (connected && gaps.length >= 3) items.push({ k: 'warn', t: `${gaps.length} de los próximos 7 días no tienen nada programado`, d: 'La constancia pesa más que el volumen. Rellena la cola o activa una regla.', a: [h('a', { class: 'btn sm', href: '#/automation' }, 'Automatizar')] });
   const mix = contentMix(state);
@@ -49,7 +52,7 @@ function render() {
           items.length ? items.map((it) => h('div', { class: 'list-item' }, h('span', { class: `dot ${it.k}` }), h('div', { class: 'grow' }, h('b', null, it.t), h('div', { class: 'small muted' }, it.d)), h('div', { class: 'row' }, it.a))) : h('div', { class: 'card-pad' }, callout('ok', 'Todo en orden: cuentas conectadas, sin fallos y cola cubierta.'))),
         h('div', { class: 'card' }, h('div', { class: 'card-head' }, h('h2', null, 'Próximas publicaciones'), h('a', { class: 'btn sm ghost', href: '#/calendar' }, 'Ver calendario')),
           next7.length ? next7.sort((a, b) => a.scheduledAt - b.scheduledAt).slice(0, 6).map((p) => h('button', { class: 'list-item', style: { width: '100%', background: 'none', border: 0, borderBottom: '1px solid var(--line)', textAlign: 'left', cursor: 'pointer' }, onclick: () => postDetail(p) },
-            h('div', { style: { width: '40px', height: '50px', borderRadius: '6px', overflow: 'hidden', flex: 'none' } }, thumb(assetOf(state, p.assetId), '')), h('div', { class: 'grow' }, h('b', null, p.title || 'Sin título'), h('div', { class: 'small muted' }, `${when(p)} · ${rel(p.scheduledAt)}`)), targetBadges(p), statusPill(p.status))) : empty('calendar', 'Nada programado', 'Crea una publicación o activa una regla para llenar la cola.', h('a', { class: 'btn primary', href: '#/studio/new' }, 'Crear publicación')))),
+            h('div', { style: { width: '40px', height: '50px', borderRadius: '6px', overflow: 'hidden', flex: 'none' } }, thumb(assetOf(state, p.assetId), '')), h('div', { class: 'grow' }, h('b', null, p.title || 'Sin título'), h('div', { class: 'small muted' }, `${when(p)} · ${rel(p.scheduledAt)}`)), targetBadges(p), statusPillFor(p))) : empty('calendar', 'Nada programado', 'Crea una publicación o activa una regla para llenar la cola.', h('a', { class: 'btn primary', href: '#/studio/new' }, 'Crear publicación')))),
       h('div', { class: 'card card-pad stack' }, h('h2', null, 'Mix de contenido (±30 días)'), h('p', { class: 'small muted' }, 'Línea negra = objetivo. Un feed solo de ofertas cansa; solo de consejos no vende.'),
         mix.n ? h('div', { class: 'bars' }, Object.entries(CATEGORIES).map(([k, l]) => h('div', { class: 'bar-row' }, h('span', null, l), h('div', { class: 'bar-track' }, h('div', { class: 'bar-fill', style: { width: `${mix.pct[k]}%` } }), h('div', { class: 'bar-target', style: { left: `${S.mix[k]}%` } })), h('span', { class: 'muted' }, `${mix.pct[k]}% / ${S.mix[k]}%`)))) : h('p', { class: 'muted' }, 'Sin datos todavía.'),
         h('p', { class: 'small muted' }, 'Mide el efecto real en Meta Business Suite: este panel publica pero no lee alcance ni clics.'))));

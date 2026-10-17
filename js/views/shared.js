@@ -5,6 +5,8 @@ import { FORMATS, STATUS, assetOf, accountOf, captionFor } from '../rules.js';
 import { fmtDateTime } from '../tz.js';
 
 export const statusPill = (s) => pill(STATUS[s]?.label || s, STATUS[s]?.kind || '');
+export const needsApproval = (p) => !!p.ruleId && p.approved !== true && p.status === 'scheduled';
+export const statusPillFor = (p) => (needsApproval(p) ? pill('Por aprobar', 'warn') : statusPill(p.status));
 export const targetBadges = (post) => h('span', { class: 'row', style: { gap: '4px' } }, post.targets.map((t) => { const f = FORMATS[t.format]; return h('span', { title: `${accountOf(state, t.accountId)?.label || '?'} · ${f?.label}` }, platBadge(f?.platform || 'whatsapp')); }));
 export function thumb(asset, cls = '') {
   if (!asset) return h('div', { class: cls, style: { background: 'var(--surface-2)' } });
@@ -25,11 +27,12 @@ export function postDetail(post, { onEdit } = {}) {
   const errs = (post.results || []).filter((r) => !r.ok && r.error);
   const close = openModal({ title: post.title || 'Publicación', size: 'lg', body: h('div', { class: 'grid cols-2', style: { gridTemplateColumns: '180px 1fr' } },
     h('div', { style: { minWidth: 0, width: '180px' } }, thumb(a, '')),
-    h('div', { class: 'stack' }, h('div', { class: 'row' }, statusPill(post.status), h('span', { class: 'muted' }, when(post)), post.ruleId ? pill('Automática', 'info') : null),
+    h('div', { class: 'stack' }, h('div', { class: 'row' }, statusPillFor(post), h('span', { class: 'muted' }, when(post)), post.ruleId ? pill('Automática', 'info') : null),
       post.problem ? callout('warn', h('b', null, 'Revisar: '), post.problem) : null, errs.map((e) => callout('err', h('b', null, 'Error: '), e.error)), h('div', null, rows),
       h('div', null, h('div', { class: 'label' }, 'Texto'), h('p', { class: 'small', style: { whiteSpace: 'pre-wrap' } }, captionFor(post, post.targets[0]?.format) || '(sin texto)')))),
     actions: [
-      { label: 'Eliminar', kind: 'danger', close: false, onClick: async () => { if (!(await confirmDialog(post.ruleId ? 'Esta publicación viene de una automatización. Se marcará como cancelada para que no se vuelva a generar.' : '¿Eliminar esta publicación?', 'Eliminar', true))) return false; post.ruleId ? upsert('posts', { ...post, status: 'canceled' }) : remove('posts', post.id); close(); } },
+      { label: 'Eliminar', kind: 'danger', close: false, onClick: async () => { if (!(await confirmDialog(post.ruleId ? 'Esta publicación viene de una automatización. Se marcará como cancelada para que no se vuelva a generar.' : '¿Eliminar esta publicación?', 'Eliminar', true))) return false; (post.ruleId && !['published', 'partial', 'manual'].includes(post.status)) ? upsert('posts', { ...post, status: 'canceled' }) : remove('posts', post.id); close(); } },
+      ...(needsApproval(post) ? [{ label: 'Aprobar', kind: 'primary', close: false, onClick: () => { upsert('posts', { ...post, approved: true }); toast('Aprobada: saldrá a su hora', 'ok'); close(); } }] : []),
       ...(post.status === 'failed' || post.status === 'partial' ? [{ label: 'Reintentar fallidos', close: false, onClick: () => { retryFailed(post); close(); } }] : []),
       ...(post.status !== 'published' ? [{ label: 'Editar', kind: 'primary', close: false, onClick: () => { close(); onEdit ? onEdit(post) : (location.hash = `#/studio/${post.id}`); } }] : [{ label: 'Duplicar', close: false, onClick: () => { close(); location.hash = `#/studio/new?from=${post.id}`; } }, { label: 'Cerrar', kind: 'primary' }]),
     ] });

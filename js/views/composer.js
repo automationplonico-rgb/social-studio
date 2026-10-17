@@ -95,7 +95,7 @@ function render(post) {
   async function save(m) {
     if (m !== 'draft') { const e = validatePost({ ...post, status: 'scheduled', scheduledAt: m === 'now' ? Date.now() + 60000 : post.scheduledAt }, state).find((i) => i.level === 'error'); if (e) return toast(e.msg, 'err'); }
     if (m === 'now' && !(await confirmDialog(`Se publicará ahora en ${post.targets.length} destino(s). ¿Continuar?`, 'Publicar'))) return;
-    const p = { ...post, problem: undefined, status: m === 'draft' ? 'draft' : 'scheduled', scheduledAt: m === 'now' ? Date.now() + 2000 : post.scheduledAt };
+    const p = { ...post, approved: m === 'draft' ? post.approved : true, problem: undefined, status: m === 'draft' ? 'draft' : 'scheduled', scheduledAt: m === 'now' ? Date.now() + 2000 : post.scheduledAt };
     if (!p.title) p.title = assetOf(state, p.assetId)?.name || 'Publicación';
     upsert('posts', p);
     if (m === 'now') { if (api.mode() === 'remote') { try { await api.publishNow(p.id); toast('Enviada al publicador', 'ok'); } catch (e) { toast(`No se pudo publicar: ${e.message}`, 'err'); } } else setTimeout(() => { if (demoTick(Date.now() + 5000).length) { emit(); toast('Publicado (simulado)', 'ok'); } }, 2500); }

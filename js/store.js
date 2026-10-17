@@ -10,8 +10,9 @@ export const DEFAULT_SETTINGS = () => ({
   lint: { noEmDash: true, noPrices: true, maxHashtags: 3 },
   mix: { proof: 30, education: 30, offer: 20, behind: 20 },
   onboardingDismissed: false,
+  drive: { folderId: '', folderName: '', enabled: true },
 });
-export const state = { accounts: [], assets: [], posts: [], rules: [], settings: DEFAULT_SETTINGS(), ready: false, error: null };
+export const state = { accounts: [], assets: [], posts: [], rules: [], settings: DEFAULT_SETTINGS(), driveSync: null, ready: false, error: null };
 const subs = new Set();
 export const subscribe = (fn) => { subs.add(fn); return () => subs.delete(fn); };
 export const emit = () => subs.forEach((f) => { try { f(state); } catch (e) { console.error(e); } });
@@ -21,7 +22,7 @@ export async function load() {
   try {
     const d = await api.loadAll();
     state.accounts = d.accounts; state.assets = d.assets; state.posts = d.posts; state.rules = d.rules;
-    state.settings = merge(DEFAULT_SETTINGS(), d.settings || {}); state.error = null;
+    state.settings = merge(DEFAULT_SETTINGS(), d.settings || {}); state.driveSync = d.driveSync || null; state.error = null;
     await hydrateUrls();
   } catch (e) { state.error = e.message; }
   state.ready = true; emit();

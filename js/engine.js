@@ -61,7 +61,7 @@ export function materialize(rule, st = state, now = Date.now()) {
     const asset = pickAsset(rule, st, taken, now);
     if (!asset) { warnings.push(`Sin diseño disponible para ${s.key} ${s.time} (revisa el pool o "no repetir en N días").`); continue; }
     taken.add(asset.id);
-    const post = newPost({ title: asset.name, assetId: asset.id, targets: rule.targets.map((t) => ({ ...t })), copy: copyFor(rule, asset, rule.targets, s.slotKey, st.settings), scheduledAt: s.at, status: 'scheduled', category: asset.category || null, ruleId: rule.id, slotKey: s.slotKey });
+    const post = newPost({ title: asset.name, assetId: asset.id, targets: rule.targets.map((t) => ({ ...t })), copy: copyFor(rule, asset, rule.targets, s.slotKey, st.settings), scheduledAt: s.at, status: 'scheduled', approved: rule.autoPublish === true, category: asset.category || null, ruleId: rule.id, slotKey: s.slotKey });
     const issues = validatePost(post, { ...st, posts: [...st.posts, ...created] }, now);
     if (hasErrors(issues)) { post.status = 'draft'; post.problem = issues.find((i) => i.level === 'error').msg; warnings.push(`${s.key} ${s.time}: queda en borrador (${post.problem})`); }
     created.push(post);

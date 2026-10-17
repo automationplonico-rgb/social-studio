@@ -56,7 +56,7 @@ function card(a) {
   const el = h('div', { class: `asset${selected.has(a.id) ? ' sel' : ''}`, tabindex: '0', role: 'button', 'aria-label': `Editar ${a.name}`, onclick: (e) => { if (e.target.closest('.tick')) return; edit(a); }, onkeydown: (e) => { if (e.key === 'Enter') edit(a); } },
     h('label', { class: 'tick', onclick: (e) => e.stopPropagation() }, h('input', { type: 'checkbox', checked: selected.has(a.id), 'aria-label': `Seleccionar ${a.name}`, onchange: (e) => { e.target.checked ? selected.add(a.id) : selected.delete(a.id); el.classList.toggle('sel', e.target.checked); emit(); } })),
     h('div', { class: 'thumb' }, thumb(a, '')), a.kind === 'video' ? h('span', { class: 'badge pill info' }, icon('film', 12), `${Math.round(a.dur || 0)} s`) : null,
-    h('div', { class: 'meta' }, h('b', null, a.name), h('div', { class: 'row small muted', style: { gap: '6px', marginTop: '3px', flexWrap: 'wrap' } }, a.category ? pill(CATEGORIES[a.category]) : pill('sin categoría', 'warn'), verticalOk ? pill('9:16', 'ok') : c.ig_feed === true ? pill('feed', 'ok') : null, a.copyMode === 'none' ? pill('sin copy') : null)));
+    h('div', { class: 'meta' }, h('b', null, a.name), h('div', { class: 'row small muted', style: { gap: '6px', marginTop: '3px', flexWrap: 'wrap' } }, a.category ? pill(CATEGORIES[a.category]) : pill('sin categoría', 'warn'), verticalOk ? pill('9:16', 'ok') : c.ig_feed === true ? pill('feed', 'ok') : null, a.copyMode === 'none' ? pill('sin copy') : null, a.driveId ? pill('Drive', 'info') : null)));
   return el;
 }
 function bulk() {
@@ -79,6 +79,6 @@ function edit(a) {
       field('Modo de copy de este diseño', modeSel, null), modeHelp, field('Gancho / encabezado fijo', hookSel), field('Texto base', cap),
       field('Etiquetas (separadas por coma)', h('input', { type: 'text', value: d.tags.join(', '), oninput: (e) => (d.tags = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)) })),
       field('Texto alternativo (accesibilidad)', h('input', { type: 'text', value: d.alt, oninput: (e) => (d.alt = e.target.value) })),
-      h('div', { class: 'small muted' }, `Usado ${a.usedCount || 0} veces.`)));
+      h('div', { class: 'small muted' }, `Usado ${a.usedCount || 0} veces.`), a.driveId ? h('a', { class: 'small', href: `https://drive.google.com/file/d/${a.driveId}/view`, target: '_blank', rel: 'noopener' }, 'Abrir original en Drive') : null));
   openModal({ title: 'Editar diseño', size: 'lg', body, actions: [{ label: 'Eliminar', kind: 'danger', close: false, onClick: async (close) => { if (await confirmDialog('¿Eliminar este diseño?', 'Eliminar', true)) { remove('assets', a.id); close(); } } }, { label: 'Crear publicación', close: false, onClick: (close) => { upsert('assets', d); close(); location.hash = `#/studio/new?asset=${a.id}`; } }, { label: 'Guardar', kind: 'primary', onClick: () => upsert('assets', d) }] });
 }
