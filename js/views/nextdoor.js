@@ -1,7 +1,9 @@
 // Nextdoor: cola diaria con todo lo que pide el compositor de Nextdoor (texto, foto, ubicación, encuesta/evento).
 // Nextdoor no ofrece API pública para publicar: el panel lo deja listo y tú publicas en ~30 s.
-import { h, icon, pill, mount, copyText, callout, empty, toast } from '../ui.js';
-import { state, setSettings } from '../store.js';
+import { h, icon, pill, mount, copyText, callout, empty, toast, openModal, field, select } from '../ui.js';
+import { state, setSettings, upsert, uid } from '../store.js';
+import * as api from '../api.js';
+import { drawCard, cardBlob, parsePost, CARD_STYLES } from '../card.js?v=7';
 import { lintCopy, CATEGORIES } from '../rules.js';
 import { dayKey, fmtDay } from '../tz.js';
 import { PROFILES, KINDS, BANK, REPLIES, fillArea, wordCount } from '../nextdoor.js?v=5';
@@ -75,7 +77,7 @@ function detail(it) {
   const steps = [
     step(1, 'Texto', ta, h('div', { class: 'row wrap' }, count, h('span', { class: 'grow' }), it.textEdited != null ? h('button', { class: 'btn sm ghost', onclick: () => { delete draft[it.id]; patch(it.id, { textEdited: null }); repaint(); } }, 'Restaurar original') : null, h('button', { class: 'btn sm primary', onclick: () => copyText(ta.value) }, icon('copy', 14), 'Copiar texto')), lintBox),
     step(2, 'Foto', h('div', { class: 'small muted' }, `Idea: ${it.image}`), h('div', { class: 'small muted' }, 'Nextdoor premia las fotos reales de tu trabajo. Evita imágenes de banco.'),
-      h('div', { class: 'row wrap' }, h('select', { 'aria-label': 'Foto de la biblioteca', onchange: (e) => { patch(it.id, { assetId: e.target.value || null }); repaint(); } }, h('option', { value: '' }, 'Elegir de Diseños…'), assets.map((a) => h('option', { value: a.id, selected: a.id === it.assetId }, a.name))), h('a', { class: 'btn sm', href: '#/library' }, icon('upload', 14), 'Subir foto'), asset ? h('button', { class: 'btn sm', onclick: () => download(asset) }, icon('download', 14), 'Descargar') : null),
+      h('div', { class: 'row wrap' }, h('select', { 'aria-label': 'Foto de la biblioteca', onchange: (e) => { patch(it.id, { assetId: e.target.value || null }); repaint(); } }, h('option', { value: '' }, 'Elegir de Diseños…'), assets.map((a) => h('option', { value: a.id, selected: a.id === it.assetId }, a.name))), h('a', { class: 'btn sm', href: '#/library' }, icon('upload', 14), 'Subir foto'), h('button', { class: 'btn sm primary', onclick: () => cardModal(it, text) }, icon('sparkle', 14), 'Generar tarjeta'), asset ? h('button', { class: 'btn sm', onclick: () => download(asset) }, icon('download', 14), 'Descargar') : null),
       asset ? h('div', { style: { maxWidth: '220px', borderRadius: '10px', overflow: 'hidden' } }, thumb(asset, '')) : null),
     step(3, 'Ubicación', h('div', { class: 'small muted' }, 'Pulsa el pin del compositor y escribe el barrio para llegar a los vecinos de esa zona.'), h('div', { class: 'row' }, pill(area, 'brand'), h('button', { class: 'btn sm', onclick: () => copyText(area) }, icon('copy', 14), 'Copiar barrio'))),
   ];
@@ -84,6 +86,26 @@ function detail(it) {
   const fin = h('div', { class: 'row wrap' }, h('a', { class: 'btn', href: 'https://nextdoor.co.uk/', target: '_blank', rel: 'noopener' }, icon('send', 14), 'Abrir Nextdoor'), h('span', { class: 'grow' }),
     it.status === 'done' ? h('button', { class: 'btn', onclick: () => { patch(it.id, { status: 'todo', doneAt: null }); repaint(); } }, 'Marcar como pendiente') : h('button', { class: 'btn primary', onclick: () => { patch(it.id, { status: 'done', doneAt: Date.now() }); selId = null; toast('Marcada como publicada', 'ok'); repaint(); } }, icon('check', 14), 'Ya lo publiqué'));
   return h('div', { class: 'stack' }, h('div', { class: 'row wrap' }, h('h2', { style: { margin: 0 } }, it.title), pill(CATEGORIES[it.cat] || it.cat), pill(KINDS[kindOf(it)], 'info')), ...steps, fin);
+}
+
+// Genera una tarjeta gráfica de marca a partir del texto del post y la guarda en la biblioteca.
+function cardModal(it, text) {
+  const P = PROFILES[prof]; const auto = parsePost(text); const st = { headline: auto.headline, bullets: auto.bullets.join('\n'), style: 'solid' };
+  const canvas = h('canvas', { style: { width: '100%', maxWidth: '380px', borderRadius: '12px', border: '1px solid var(--line)' } });
+  const paint = () => drawCard(canvas, { headline: st.headline, bullets: st.bullets.split('\n').map((s) => s.trim()).filter(Boolean), footer: P.sig, brand: P.label, color: P.color, style: st.style });
+  const head = h('input', { type: 'text', value: st.headline, oninput: (e) => { st.headline = e.target.value; paint(); } });
+  const pts = h('textarea', { rows: 6, value: st.bullets, oninput: (e) => { st.bullets = e.target.value; paint(); } });
+  const sty = select(Object.entries(CARD_STYLES).map(([value, label]) => ({ value, label })), st.style, (v) => { st.style = v; paint(); });
+  paint();
+  openModal({ title: 'Generar tarjeta gráfica', size: 'lg', body: h('div', { class: 'grid', style: { gridTemplateColumns: 'minmax(220px, 380px) 1fr', gap: '18px' } }, canvas,
+    h('div', { class: 'stack' }, callout('info', 'Es una tarjeta gráfica con tu texto, no una foto. Úsala para consejos, checklists y encuestas. Para trabajos reales, sube fotos reales.'), field('Titular', head), field('Puntos (uno por línea)', pts), field('Estilo', sty))),
+    actions: [{ label: 'Cancelar' }, { label: 'Usar esta imagen', kind: 'primary', onClick: async () => {
+      try {
+        const blob = await cardBlob(canvas); const id = uid('ast'); const a = { id, name: `${P.label} tarjeta ${it.title}`, kind: 'image', mime: 'image/jpeg', size: blob.size, w: 1080, h: 1080, collection: 'Nextdoor', category: it.cat || '', tags: ['nextdoor', 'tarjeta'], copyMode: 'light', caption: '', hookId: null, alt: st.headline, createdAt: Date.now(), usedCount: 0 };
+        const remote = await api.putAsset(a, blob); a.url = remote || (await api.assetUrl(a)); upsert('assets', a);
+        setSettings({ nextdoor: { items: { [it.id]: { assetId: id } } } }); toast('Tarjeta guardada en Diseños y asignada', 'ok'); repaint();
+      } catch (e) { toast(`No se pudo guardar la tarjeta: ${e.message}`, 'err'); return false; }
+    } }] });
 }
 
 function repliesCard() {
