@@ -3,7 +3,7 @@
 import { h, icon, pill, mount, copyText, callout, empty, toast, openModal, field, select } from '../ui.js';
 import { state, setSettings, upsert, uid } from '../store.js';
 import * as api from '../api.js';
-import { drawCard, cardBlob, parsePost, CARD_STYLES } from '../card.js?v=7';
+import { drawCard, cardBlob, parsePost, CARD_STYLES, loadImg, drawSquare } from '../card.js?v=8';
 import { lintCopy, CATEGORIES } from '../rules.js';
 import { dayKey, fmtDay } from '../tz.js';
 import { PROFILES, KINDS, BANK, REPLIES, fillArea, wordCount } from '../nextdoor.js?v=5';
@@ -76,8 +76,8 @@ function detail(it) {
   paint(text);
   const steps = [
     step(1, 'Texto', ta, h('div', { class: 'row wrap' }, count, h('span', { class: 'grow' }), it.textEdited != null ? h('button', { class: 'btn sm ghost', onclick: () => { delete draft[it.id]; patch(it.id, { textEdited: null }); repaint(); } }, 'Restaurar original') : null, h('button', { class: 'btn sm primary', onclick: () => copyText(ta.value) }, icon('copy', 14), 'Copiar texto')), lintBox),
-    step(2, 'Foto', h('div', { class: 'small muted' }, `Idea: ${it.image}`), h('div', { class: 'small muted' }, 'Nextdoor premia las fotos reales de tu trabajo. Evita imágenes de banco.'),
-      h('div', { class: 'row wrap' }, h('select', { 'aria-label': 'Foto de la biblioteca', onchange: (e) => { patch(it.id, { assetId: e.target.value || null }); repaint(); } }, h('option', { value: '' }, 'Elegir de Diseños…'), assets.map((a) => h('option', { value: a.id, selected: a.id === it.assetId }, a.name))), h('a', { class: 'btn sm', href: '#/library' }, icon('upload', 14), 'Subir foto'), h('button', { class: 'btn sm primary', onclick: () => cardModal(it, text) }, icon('sparkle', 14), 'Generar tarjeta'), asset ? h('button', { class: 'btn sm', onclick: () => download(asset) }, icon('download', 14), 'Descargar') : null),
+    step(2, 'Foto', h('div', { class: 'small muted' }, `Idea: ${it.image}`), h('div', { class: 'small muted' }, 'Nextdoor recorta la foto a cuadrado (1:1) en el feed. Usa "Ajustar a Nextdoor" para que no se corte el texto de tus diseños verticales.'),
+      h('div', { class: 'row wrap' }, h('select', { 'aria-label': 'Foto de la biblioteca', onchange: (e) => { patch(it.id, { assetId: e.target.value || null }); repaint(); } }, h('option', { value: '' }, 'Elegir de Diseños…'), assets.map((a) => h('option', { value: a.id, selected: a.id === it.assetId }, a.name))), h('a', { class: 'btn sm', href: '#/library' }, icon('upload', 14), 'Subir foto'), h('button', { class: 'btn sm primary', onclick: () => cardModal(it, text) }, icon('sparkle', 14), 'Generar tarjeta'), asset ? h('button', { class: 'btn sm', onclick: () => squareModal(it, asset) }, icon('image', 14), 'Ajustar a Nextdoor (1:1)') : null, asset ? h('button', { class: 'btn sm', onclick: () => download(asset) }, icon('download', 14), 'Descargar') : null),
       asset ? h('div', { style: { maxWidth: '220px', borderRadius: '10px', overflow: 'hidden' } }, thumb(asset, '')) : null),
     step(3, 'Ubicación', h('div', { class: 'small muted' }, 'Pulsa el pin del compositor y escribe el barrio para llegar a los vecinos de esa zona.'), h('div', { class: 'row' }, pill(area, 'brand'), h('button', { class: 'btn sm', onclick: () => copyText(area) }, icon('copy', 14), 'Copiar barrio'))),
   ];
@@ -105,6 +105,26 @@ function cardModal(it, text) {
         const remote = await api.putAsset(a, blob); a.url = remote || (await api.assetUrl(a)); upsert('assets', a);
         setSettings({ nextdoor: { items: { [it.id]: { assetId: id } } } }); toast('Tarjeta guardada en Diseños y asignada', 'ok'); repaint();
       } catch (e) { toast(`No se pudo guardar la tarjeta: ${e.message}`, 'err'); return false; }
+    } }] });
+}
+
+// Adapta una imagen existente (p. ej. un diseño vertical 9:16) a cuadrado 1:1 y la guarda como nueva.
+async function squareModal(it, asset) {
+  let img; try { img = await loadImg(asset.url); } catch (e) { return toast(e.message, 'err'); }
+  const st = { mode: 'fit', pos: 0.5 };
+  const canvas = h('canvas', { style: { width: '100%', maxWidth: '380px', borderRadius: '12px', border: '1px solid var(--line)' } });
+  const paint = () => drawSquare(canvas, img, st);
+  const mode = select([{ value: 'fit', label: 'Entera, con fondo desenfocado (no corta nada)' }, { value: 'crop', label: 'Recortar a cuadrado (la imagen se ve más grande)' }], st.mode, (v) => { st.mode = v; pos.disabled = v === 'fit'; paint(); });
+  const pos = h('input', { type: 'range', min: 0, max: 1, step: 0.01, value: 0.5, disabled: true, 'aria-label': 'Posición del recorte', oninput: (e) => { st.pos = +e.target.value; paint(); } });
+  paint();
+  openModal({ title: 'Ajustar a Nextdoor (1:1)', size: 'lg', body: h('div', { class: 'grid', style: { gridTemplateColumns: 'minmax(220px, 380px) 1fr', gap: '18px' } }, canvas,
+    h('div', { class: 'stack' }, callout('info', `Original: ${img.naturalWidth}x${img.naturalHeight}. Nextdoor muestra el feed en cuadrado, así que se pierde lo de arriba y abajo en imágenes verticales.`), field('Modo', mode), field('Mover el recorte (solo en modo recortar)', pos))),
+    actions: [{ label: 'Cancelar' }, { label: 'Usar esta imagen', kind: 'primary', onClick: async () => {
+      try {
+        const blob = await cardBlob(canvas); const id = uid('ast'); const a = { ...asset, id, name: `${asset.name} 1x1`, mime: 'image/jpeg', size: blob.size, w: 1080, h: 1080, tags: [...(asset.tags || []), 'nextdoor', '1x1'], createdAt: Date.now(), usedCount: 0, url: undefined, remoteUrl: undefined };
+        const remote = await api.putAsset(a, blob); a.url = remote || (await api.assetUrl(a)); upsert('assets', a);
+        setSettings({ nextdoor: { items: { [it.id]: { assetId: id } } } }); toast('Imagen 1:1 guardada y asignada', 'ok'); repaint();
+      } catch (e) { toast(`No se pudo guardar: ${e.message}`, 'err'); return false; }
     } }] });
 }
 

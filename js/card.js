@@ -54,3 +54,16 @@ export function drawCard(canvas, { headline, bullets = [], footer = '', brand = 
   return canvas;
 }
 export const cardBlob = (canvas) => new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
+
+// Convierte cualquier imagen a cuadrado 1:1 (el feed de Nextdoor recorta a cuadrado).
+// mode 'fit': la imagen entera sobre un fondo desenfocado de sí misma (no se pierde nada).
+// mode 'crop': recorte cuadrado; pos 0..1 mueve el recorte en el eje largo.
+export const loadImg = (url) => new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => rej(new Error('No se pudo cargar la imagen')); i.src = url; });
+export function drawSquare(canvas, img, { mode = 'fit', pos = 0.5, size = 1080 }) {
+  canvas.width = canvas.height = size; const ctx = canvas.getContext('2d'); const w = img.naturalWidth, h = img.naturalHeight;
+  if (mode === 'crop') {
+    const s = Math.min(w, h); const sx = w > h ? (w - s) * pos : 0, sy = h > w ? (h - s) * pos : 0; ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size); return canvas;
+  }
+  const cov = Math.max(size / w, size / h); ctx.save(); ctx.filter = 'blur(40px) brightness(.85)'; ctx.drawImage(img, (size - w * cov) / 2, (size - h * cov) / 2, w * cov, h * cov); ctx.restore();
+  const fit = Math.min(size / w, size / h); ctx.drawImage(img, (size - w * fit) / 2, (size - h * fit) / 2, w * fit, h * fit); return canvas;
+}
