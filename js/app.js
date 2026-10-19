@@ -7,7 +7,7 @@ import { demoTick } from './engine.js';
 const ROUTES = {
   '': { label: 'Resumen', icon: 'home', mod: () => import('./views/overview.js') },
   calendar: { label: 'Calendario', icon: 'calendar', mod: () => import('./views/calendar.js') },
-  nextdoor: { label: 'Nextdoor', icon: 'home', mod: () => import('./views/nextdoor.js') },
+  nextdoor: { label: 'Nextdoor', icon: 'home', mod: () => import('./views/nextdoor.js?v=5') },
   studio: { label: 'Crear', icon: 'pen', mod: () => import('./views/composer.js'), hidden: false },
   library: { label: 'Diseños', icon: 'image', mod: () => import('./views/library.js') },
   automation: { label: 'Automatizar', icon: 'zap', mod: () => import('./views/automation.js'), opt: true },

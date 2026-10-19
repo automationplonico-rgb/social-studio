@@ -4,7 +4,7 @@ import { h, icon, pill, mount, copyText, callout, empty, toast } from '../ui.js'
 import { state, setSettings } from '../store.js';
 import { lintCopy, CATEGORIES } from '../rules.js';
 import { dayKey, fmtDay } from '../tz.js';
-import { PROFILES, KINDS, BANK, REPLIES, fillArea, wordCount } from '../nextdoor.js';
+import { PROFILES, KINDS, BANK, REPLIES, fillArea, wordCount } from '../nextdoor.js?v=5';
 import { thumb } from './shared.js';
 
 let prof = 'mooveto', selId = null; const draft = {};
