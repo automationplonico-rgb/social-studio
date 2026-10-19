@@ -3,8 +3,8 @@
 // Reglas de marca: sin precios, sin guiones largos, sin política, sin competidores, sin urgencia falsa.
 
 export const PROFILES = {
-  mooveto: { label: 'Mooveto', page: 'Mooveto', color: '#1f5bff', sig: 'Mooveto, careful crew and a van. Free quotes, no obligation.', defaultArea: 'Mill Hill' },
-  keen: { label: 'Keen Clean', page: 'Keen Resources', color: '#0f9d75', sig: 'Keen Clean, professional cleaning. Free quote, no obligation.', defaultArea: 'Mill Hill' },
+  mooveto: { label: 'Mooveto', page: 'Mooveto', color: '#1f5bff', sig: 'Mooveto, careful crew and a van. Free quotes, no obligation.', defaultArea: 'Brondesbury Park', areas: ['Brondesbury Park', 'Willesden Green', 'Dollis Hill', 'Cricklewood', 'Brondesbury', 'Kensal Rise'] },
+  keen: { label: 'Keen Clean', page: 'Keen Resources', color: '#0f9d75', sig: 'Keen Clean, professional cleaning. Free quote, no obligation.', defaultArea: 'Brondesbury Park', areas: ['Brondesbury Park', 'Willesden Green', 'Dollis Hill', 'Cricklewood', 'Brondesbury', 'Kensal Rise'] },
 };
 
 // Tipos de contenido de Nextdoor que el compositor ofrece: publicación, encuesta, evento.

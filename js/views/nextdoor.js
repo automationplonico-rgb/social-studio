@@ -10,7 +10,7 @@ import { thumb } from './shared.js';
 let prof = 'mooveto', selId = null; const draft = {};
 const nd = () => state.settings.nextdoor || {};
 const itemsCfg = () => nd().items || {};
-const areasOf = (p) => (nd().areas?.[p]?.length ? nd().areas[p] : [PROFILES[p].defaultArea]);
+const areasOf = (p) => (nd().areas?.[p]?.length ? nd().areas[p] : PROFILES[p].areas);
 const areaSel = () => (nd().area?.[prof] && areasOf(prof).includes(nd().area[prof]) ? nd().area[prof] : areasOf(prof)[0]);
 const merged = (it) => ({ ...it, ...(itemsCfg()[it.id] || {}) });
 const all = (p) => [...BANK.filter((b) => b.profile === p), ...((nd().custom || []).filter((c) => c.profile === p))].map(merged);
